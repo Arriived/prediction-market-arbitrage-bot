@@ -15,11 +15,13 @@ Traditional arbitrage guarantees profit by exploiting price differences. This bo
 - **Payout if executed: 100¢**
 - **Potential profit: 2¢**
 
-**Execution Strategy:** We aggressively take liquidity using **Market Orders** on both platforms simultaneously. We do not place limit orders or wait for fills—we instantly seize the best available price to lock in the spread.
+**Execution Strategy:** Entries submit equal whole-contract quantities on both venues, capped at the quoted prices. Kalshi uses fill-or-kill entry orders. The pinned Polymarket client submits marketable limit orders that can remain open. An accepted order counts as complete only after its full fill is confirmed.
 
 ## Quick Start
 
 ### 1. Install Dependencies
+
+Use Node.js 18 or newer.
 
 ```bash
 npm install
@@ -77,9 +79,12 @@ Picks the strategy with maximum profit.
 
 ### 3. Execution (YOLO Mode)
 - Finds the best arbitrage opportunity (highest profit)
-- Goes ALL IN with available capital
-- Places market orders on both platforms
-- Waits for fills
+- Uses a 1000¢ budget per leg (CONSERVATIVE mode uses `tradeAmountCents`)
+- Submits equal whole-contract quantities at the quoted entry price caps
+- Confirms full fills or pauses for manual reconciliation
+
+### Handling uncertain orders
+If either leg fails or its full fill cannot be confirmed, the bot retains the attempted position and pauses trading with a reconciliation message. Check both venues for fills and resting orders, cancel unwanted orders, and reconcile or close exposure before restarting. Position state is held in memory; a restart does not recover it automatically. Cross-venue orders are independent and may leave one-sided exposure.
 
 ### 4. Exit & Rotation Strategy
 - **Profit Taking:** When markets converge (profit < 1¢), we sell to realize gains.
@@ -93,7 +98,7 @@ Picks the strategy with maximum profit.
 | `kalshiUrl` | Kalshi market URL | Required |
 | `pollIntervalSeconds` | How often to check prices | 30 |
 | `minProfitCents` | Minimum profit to execute trade | 1 |
-| `tradingMode` | 'YOLO' (all-in) or 'CONSERVATIVE' | 'YOLO' |
+| `tradingMode` | 'YOLO' (1000¢ per leg) or 'CONSERVATIVE' | 'YOLO' |
 | `tradeAmountCents` | Fixed amount if CONSERVATIVE | 100 |
 | `matchingThreshold` | Fuzzy match threshold (0-1) | 0.7 |
 | `dryRun` | Test mode (no real trades) | true |

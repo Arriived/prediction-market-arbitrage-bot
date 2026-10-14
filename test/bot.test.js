@@ -4,7 +4,7 @@ import { jest } from '@jest/globals';
 jest.unstable_mockModule('pmxtjs', () => ({
     default: {
         polymarket: class { },
-        kalshi: class { }
+        kalshi: class { constructor(credentials) { this.credentials = credentials; } }
     }
 }));
 
@@ -24,6 +24,12 @@ describe('ArbitrageBot', () => {
         ArbitrageBot = module.ArbitrageBot;
     });
 
+    test('passes the Kalshi private key under the SDK credential field', () => {
+        const initialized = new ArbitrageBot({ kalshiApiKey: 'test-id', kalshiApiSecret: 'test-key' });
+        expect(initialized.kalshi.credentials).toEqual({ apiKey: 'test-id', privateKey: 'test-key' });
+        expect(typeof initialized.kalshi.createOrder).toBe('function');
+    });
+
     beforeEach(() => {
         bot = Object.create(ArbitrageBot.prototype);
         bot.config = {
@@ -34,8 +40,8 @@ describe('ArbitrageBot', () => {
         };
 
         // Mock clients
-        bot.polymarket = { createOrder: jest.fn().mockResolvedValue({ id: 'poly_order_1' }) };
-        bot.kalshi = { createOrder: jest.fn().mockResolvedValue({ id: 'kalshi_order_1' }) };
+        bot.polymarket = { createOrder: jest.fn(async ({ amount }) => ({ id: 'poly_order_1', filled: amount })) };
+        bot.kalshi = { createOrder: jest.fn(async ({ amount }) => ({ id: 'kalshi_order_1', filled: amount })) };
 
         // Setup a standard position for PnL and Exit tests
         bot.currentPosition = {
@@ -130,7 +136,8 @@ describe('ArbitrageBot', () => {
                 marketId: 'p_m',
                 outcomeId: 'p_yes',
                 side: 'buy',
-                amount: 25, // 1000 / 40
+                amount: 20, // Match the smaller affordable quantity on both venues
+                price: 0.4,
                 type: 'market'
             });
 
@@ -140,12 +147,13 @@ describe('ArbitrageBot', () => {
                 outcomeId: 'k_no',
                 side: 'buy',
                 amount: 20, // 1000 / 50
+                price: 0.5,
                 type: 'market'
             });
 
             // Verify State Update
             expect(bot.currentPosition).not.toBeNull();
-            expect(bot.currentPosition.shares.polymarket).toBe(25);
+            expect(bot.currentPosition.shares.polymarket).toBe(20);
             expect(bot.currentPosition.shares.kalshi).toBe(20);
         });
 
